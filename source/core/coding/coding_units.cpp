@@ -27,6 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cassert>
@@ -174,7 +175,7 @@ j2k_codeblock::j2k_codeblock(const uint32_t &idx, uint8_t orientation, uint8_t M
   //  sample_buf   = static_cast<int32_t *>(aligned_mem_alloc(sizeof(int32_t) * size.x * size.y, 32));
   //  memset(sample_buf, 0, sizeof(int32_t) * size.x * size.y);
   //  memset(block_states, 0, (size.x + 2) * (size.y + 2));
-  const uint32_t QWx2 = size.x + size.x % 2;
+  const uint32_t QWx2 = size.x +  size.x % 2;
   const uint32_t QHx2 = size.y + size.y % 2;
   block_states        = std::make_unique<uint8_t[]>((size.x + 2) * (size.y + 2));
   memset(block_states.get(), 0, (size.x + 2) * (size.y + 2));
@@ -2330,20 +2331,10 @@ void j2k_tile::decode(j2k_main_header &main_header) {
             j2k_codeblock *block = cpb->access_codeblock(block_index);
             // only decode a codeblock having non-zero coding passes
             if (block->num_passes) {
-              if (pool->num_threads() > 1) {
-                results.emplace_back(pool->enqueue([block, ROIshift] {
-                  if ((block->Cmodes & HT) >> 6)
-                    htj2k_decode(block, ROIshift);
-                  else
-                    j2k_decode(block, ROIshift);
-                  return 0;
-                }));
-              } else {
                 if ((block->Cmodes & HT) >> 6)
                   htj2k_decode(block, ROIshift);
                 else
                   j2k_decode(block, ROIshift);
-              }
             }
           }  // end of codeblock loop
         }    // end of subbnad loop

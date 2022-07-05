@@ -126,7 +126,6 @@ void openhtj2k_decoder_impl::invoke(std::vector<int32_t *> &buf, std::vector<uin
   }
 
   // prepare output buffer
-#pragma omp parallel for
   for (uint16_t c = 0; c < num_components; c++) {
     for (uint32_t i = 0; i < numTiles.x * numTiles.y; i++) {
       j2k_tile_component *tile_component = tileSet[i].get_tile_component(c);
@@ -149,7 +148,7 @@ openhtj2k_decoder_impl::~openhtj2k_decoder_impl() = default;
 
 // public interface
 openhtj2k_decoder::openhtj2k_decoder(const char *fname, const uint8_t reduce_NL, uint32_t num_threads) {
-  this->impl = std::make_unique<openhtj2k_decoder_impl>(fname, reduce_NL, num_threads);
+  this->impl = std::make_unique<openhtj2k_decoder_impl>(fname, reduce_NL, 0);
 }
 void openhtj2k_decoder::invoke(std::vector<int32_t *> &buf, std::vector<uint32_t> &width,
                                std::vector<uint32_t> &height, std::vector<uint8_t> &depth,

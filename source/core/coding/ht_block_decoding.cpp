@@ -26,6 +26,8 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <cstdio>
+#include <cstdlib>
 #include "coding_units.hpp"
 #include "dec_CxtVLC_tables.hpp"
 #include "ht_block_decoding.hpp"
@@ -39,6 +41,7 @@
 #define FIRST_QUAD 0
 #define SECOND_QUAD 1
 
+static int COUNTER = 0;
 // void j2k_codeblock::set_sample(const uint32_t &symbol, const uint16_t &j1, const uint16_t &j2) {
 //  sample_buf[j2 + j1 * size.x] = static_cast<int32_t>(symbol);
 //}
@@ -472,12 +475,12 @@ void ht_cleanup_decode(j2k_codeblock *block, uint8_t *const Dcup, const uint32_t
   uint8_t E_n[2], E_ne[2], E_nw[2], E_nf[2], max_E[2];
   int32_t m_n[2], known_1[2];
 
+  printf("%d %d\n",QW,QH);
   context = 0;
   // Initial line-pair
   for (; q < QW - 1;) {
     q1 = q;
     q2 = q + 1;
-#ifdef ADVANCED
     decodeSigEMB(MEL_decoder, VLC, context, u_off, rho, emb_k, emb_1, FIRST_QUAD, dec_table0);
     if (u_off[FIRST_QUAD] == 0) {
       assert(emb_k[FIRST_QUAD] == 0 && emb_1[FIRST_QUAD] == 0);
@@ -490,16 +493,9 @@ void ht_cleanup_decode(j2k_codeblock *block, uint8_t *const Dcup, const uint32_t
     context |= sigma_n[4 * q1 + 1];       // sf
     context += sigma_n[4 * q1 + 2] << 1;  // w << 1
     context += sigma_n[4 * q1 + 3] << 2;  // sw << 2
-#else
-    // calculate context for the current quad
-    if (q1 > 0) {
-      context = sigma_n[4 * q1 - 4];        // f
-      context |= sigma_n[4 * q1 - 3];       // sf
-      context += sigma_n[4 * q1 - 2] << 1;  // w << 1
-      context += sigma_n[4 * q1 - 1] << 2;  // sw << 2
-    }
-    decodeSigEMB(MEL_decoder, VLC, context, u_off, rho, emb_k, emb_1, FIRST_QUAD, dec_table0);
-#endif
+  
+
+
     if (u_off[FIRST_QUAD] == 0) {
       assert(emb_k[FIRST_QUAD] == 0 && emb_1[FIRST_QUAD] == 0);
     }
@@ -598,7 +594,9 @@ void ht_cleanup_decode(j2k_codeblock *block, uint8_t *const Dcup, const uint32_t
       v[FIRST_QUAD][i]    = MS.decodeMagSgnValue(m_n[FIRST_QUAD], known_1[FIRST_QUAD]);
 
       if (m_n[FIRST_QUAD] != 0) {
+
         E[n]    = 32 - count_leading_zeros(v[FIRST_QUAD][i]);
+
         mu_n[n] = (v[FIRST_QUAD][i] >> 1) + 1;
         mu_n[n] <<= pLSB;
         mu_n[n] |= (v[FIRST_QUAD][i] & 1) << 31;  // sign bit
@@ -609,10 +607,14 @@ void ht_cleanup_decode(j2k_codeblock *block, uint8_t *const Dcup, const uint32_t
     }
     for (int i = 0; i < 4; i++) {
       n                    = 4 * q2 + i;
+
       m_n[SECOND_QUAD]     = m[SECOND_QUAD][i];
       known_1[SECOND_QUAD] = (emb_1[SECOND_QUAD] >> i) & 1;
       v[SECOND_QUAD][i]    = MS.decodeMagSgnValue(m_n[SECOND_QUAD], known_1[SECOND_QUAD]);
       if (m_n[SECOND_QUAD] != 0) {
+        if(n==97){
+          printf("dt:%d %d\n",m_n[1],v[1][i]);
+        }
         E[n]    = 32 - count_leading_zeros(v[SECOND_QUAD][i]);
         mu_n[n] = (v[SECOND_QUAD][i] >> 1) + 1;
         mu_n[n] <<= pLSB;
@@ -627,17 +629,7 @@ void ht_cleanup_decode(j2k_codeblock *block, uint8_t *const Dcup, const uint32_t
   // if QW is odd number ..
   if (QW % 2 == 1) {
     q1 = q;
-#ifdef ADVANCED
     decodeSigEMB(MEL_decoder, VLC, context, u_off, rho, emb_k, emb_1, FIRST_QUAD, dec_table0);
-#else
-    if (q1 > 0) {
-      context = sigma_n[4 * q1 - 4];        // f
-      context |= sigma_n[4 * q1 - 3];       // sf
-      context += sigma_n[4 * q1 - 2] << 1;  // w << 1
-      context += sigma_n[4 * q1 - 1] << 2;  // sw << 2
-    }
-    decodeSigEMB(MEL_decoder, VLC, context, u_off, rho, emb_k, emb_1, FIRST_QUAD, dec_table0);
-#endif
     if (u_off[FIRST_QUAD] == 0) {
       assert(emb_k[FIRST_QUAD] == 0 && emb_1[FIRST_QUAD] == 0);
     }
@@ -696,10 +688,9 @@ void ht_cleanup_decode(j2k_codeblock *block, uint8_t *const Dcup, const uint32_t
       if ((q1 + 1) % QW) {
         context1 |= sigma_n[4 * (q1 - QW) + 5] << 2;  // nf << 2
       }
+
       decodeSigEMB(MEL_decoder, VLC, context1, u_off, rho, emb_k, emb_1, FIRST_QUAD, dec_table1);
-      if (u_off[FIRST_QUAD] == 0) {
-        assert(emb_k[FIRST_QUAD] == 0 && emb_1[FIRST_QUAD] == 0);
-      }
+
       for (int i = 0; i < 4; i++) {
         sigma_n[4 * q1 + i] = (rho[FIRST_QUAD] >> i) & 1;
       }
@@ -715,9 +706,8 @@ void ht_cleanup_decode(j2k_codeblock *block, uint8_t *const Dcup, const uint32_t
         context2 |= sigma_n[4 * (q2 - QW) + 5] << 2;  // nf << 2
       }
       decodeSigEMB(MEL_decoder, VLC, context2, u_off, rho, emb_k, emb_1, SECOND_QUAD, dec_table1);
-      if (u_off[SECOND_QUAD] == 0) {
-        assert(emb_k[SECOND_QUAD] == 0 && emb_1[SECOND_QUAD] == 0);
-      }
+
+
       for (int i = 0; i < 4; i++) {
         sigma_n[4 * q2 + i] = (rho[SECOND_QUAD] >> i) & 1;
       }
@@ -725,13 +715,18 @@ void ht_cleanup_decode(j2k_codeblock *block, uint8_t *const Dcup, const uint32_t
       if (u_off[FIRST_QUAD] == 1 && u_off[SECOND_QUAD] == 1) {
         u_pfx[FIRST_QUAD]  = VLC.decodeUPrefix();
         u_pfx[SECOND_QUAD] = VLC.decodeUPrefix();
+
         u_sfx[FIRST_QUAD]  = VLC.decodeUSuffix(u_pfx[FIRST_QUAD]);
         u_sfx[SECOND_QUAD] = VLC.decodeUSuffix(u_pfx[SECOND_QUAD]);
+
         u_ext[FIRST_QUAD]  = VLC.decodeUExtension(u_sfx[FIRST_QUAD]);
         u_ext[SECOND_QUAD] = VLC.decodeUExtension(u_sfx[SECOND_QUAD]);
+
         u[FIRST_QUAD]      = u_pfx[FIRST_QUAD] + u_sfx[FIRST_QUAD] + (u_ext[FIRST_QUAD] << 2);
         u[SECOND_QUAD]     = u_pfx[SECOND_QUAD] + u_sfx[SECOND_QUAD] + (u_ext[SECOND_QUAD] << 2);
+
       } else if (u_off[FIRST_QUAD] == 1 && u_off[SECOND_QUAD] == 0) {
+
         u_pfx[FIRST_QUAD] = VLC.decodeUPrefix();
         u_sfx[FIRST_QUAD] = VLC.decodeUSuffix(u_pfx[FIRST_QUAD]);
         u_ext[FIRST_QUAD] = VLC.decodeUExtension(u_sfx[FIRST_QUAD]);
@@ -762,6 +757,7 @@ void ht_cleanup_decode(j2k_codeblock *block, uint8_t *const Dcup, const uint32_t
 
       E_n[FIRST_QUAD]   = E[4 * (q1 - QW) + 1];
       E_n[SECOND_QUAD]  = E[4 * (q2 - QW) + 1];
+
       E_ne[FIRST_QUAD]  = E[4 * (q1 - QW) + 3];
       E_ne[SECOND_QUAD] = E[4 * (q2 - QW) + 3];
       if (q1 % QW) {
@@ -784,6 +780,8 @@ void ht_cleanup_decode(j2k_codeblock *block, uint8_t *const Dcup, const uint32_t
       } else {
         E_nf[SECOND_QUAD] = 0;
       }
+
+
       max_E[FIRST_QUAD] = std::max({E_nw[FIRST_QUAD], E_n[FIRST_QUAD], E_ne[FIRST_QUAD], E_nf[FIRST_QUAD]});
       max_E[SECOND_QUAD] =
           std::max({E_nw[SECOND_QUAD], E_n[SECOND_QUAD], E_ne[SECOND_QUAD], E_nf[SECOND_QUAD]});
@@ -800,6 +798,12 @@ void ht_cleanup_decode(j2k_codeblock *block, uint8_t *const Dcup, const uint32_t
       for (int i = 0; i < 4; i++) {
         m[FIRST_QUAD][i]  = sigma_n[4 * q1 + i] * U[FIRST_QUAD] - ((emb_k[FIRST_QUAD] >> i) & 1);
         m[SECOND_QUAD][i] = sigma_n[4 * q2 + i] * U[SECOND_QUAD] - ((emb_k[SECOND_QUAD] >> i) & 1);
+      }
+      if (COUNTER==1) {
+        printf("[%d] %d %d %d\n",q,E_n[0],E_n[1],4 * (q1 - QW) + 1);
+        if (q >=90){
+          exit(1);
+        }
       }
       // recoverMagSgnValue
       int32_t n;
@@ -917,6 +921,12 @@ void ht_cleanup_decode(j2k_codeblock *block, uint8_t *const Dcup, const uint32_t
       q++;  // move to the next quad-pair
     }       // Non-Initial line-pair end
   }
+
+    if (COUNTER==1){
+    exit(1);
+    }
+    COUNTER+=1;
+  
 
   // convert mu_n and sigma_n into raster-scan by putting buffers defined in codeblock class
   uint32_t *p_mu             = mu_n.get();
